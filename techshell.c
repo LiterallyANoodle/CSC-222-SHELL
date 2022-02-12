@@ -14,6 +14,7 @@ Desc: Program is a custom shell with file redirection and other basic features.
 #include <fcntl.h>
 #include <stdbool.h>
 #include <ctype.h>
+#include <errno.h>
 
 #define STR_BUFFER 256
 #define COMMAND_MAX 32 // maximum allowed tokens in any single-line command
@@ -34,10 +35,12 @@ int main(int argc, char *argv[])
 	char userInput[STR_BUFFER] = "";
 	char* tokens[COMMAND_MAX];
 	char* exit = "exit";
-	int tokCount = 0;
 	char CWD[STR_BUFFER];
+	
+	int tokCount = 0;
 	int pipefd[2]; // pipe file descriptor 
 	pid_t pid;
+	
 	char* testText = "testing dup2 and pipe1\n";
 
 	// loop to repeatedly take input
@@ -61,6 +64,26 @@ int main(int argc, char *argv[])
 		// tokenize the input
 		tokCount = tokenizer(userInput, tokens);
 
+		// step 4:
+		// check for special non-exit commands: pwd, cd
+		if (strncmp(tokens[0], "pwd", 3) == 0) {
+			printf("%s\n", CWD);
+		}
+
+		if (strncmp(tokens[0], "cd", 2) == 0) {
+
+			if (tokCount < 2) {
+				printf("Please specify a directory to change to.\nUsage: cd <path> \n");
+			} 
+			else if (chdir(tokens[1]) == -1) {
+				printf("Error: Invalid path.\nUsage: cd <path> \n");
+				if (DEBUG) {
+					perror("Invalid path");
+				}
+			}
+
+		}
+
 		if (DEBUG) {
 			for (int i = 0; i < tokCount; i++) {
 				printf("%s\n", tokens[i]);
@@ -69,83 +92,8 @@ int main(int argc, char *argv[])
 
 	}
 
-	printf("exited\n");
-
-	/*// steps to receive from tokenizer:
-	// 1. create pipe
-	// 2. fork
-
-	if (pipe(pipefd) == -1) {
-		printf("pipe failure\n");
-	}
-
-	pid = fork();
-
-	// 3(child). dup2()
-	// 4(child). execvp()
-	// 5(child). close() 
-	// 6(child). write()
-	// 7(child). exit()
-
-	if (pid == 0) {
-
-		// char* testText = "testing dup2 and pipe1\n";
-
-		// int out = open(stdout, O_WRONLY);
-		// 1 is the file descriptor for stdout 
-		dup2(pipefd[1], STDOUT_FILENO); 
-		close(pipefd[0]);
-		
-		// write(pipefd[1], testText, STR_BUFFER);
-		// printf("testing dup2 and pipe2 also sizeof:\n");
-		// write(pipefd[1], testIntp, sizeof(int));
-
-		char* args[] = {"it do not matter", NULL};
-		execvp("hello", args);
-
-		close(pipefd[1]);
-		exit(0);
-
-	}
-
-	// 3(parent). read()
-	// 4(parent). close()
-	// 5(parent). wait()
-
-	else {
-
-		wait(0);
-		printf("test\n");
-		close(pipefd[1]);
-
-		int readBytes = read(pipefd[0], userInput, STR_BUFFER);
-		
-
-		close(pipefd[0]);
-		printf("%d\n", readBytes);
-
-		if (readBytes >= 0) {
-			fflush(stdout);
-			printf("read success\n");
-			// fflush(stdout);
-			printf("%s\n", userInput);
-		} else {
-			printf("read failure\n");
-		}
-
-		
-
-	}*/
-
-
-
-	// input loop
-	// while (strcmp(userInput, "exit") != 0) {
-
-
-
-	// }
-
+	if (DEBUG)
+		printf("exited\n");
 
 
 	return 0;
@@ -182,12 +130,21 @@ int tokenizer(char* userInput, char** result) {
 
 	}
 
-	// remove a trailing space if there is one 
+	// remove a trailing space token if there is one 
 	if (isspace(result[tokCount - 1][0]) != 0) {
 		result[tokCount - 1] = NULL; 
 		tokCount--; 
 		if (DEBUG)
 			printf("removed trailing space\n");
+	}
+
+	// it seems these tokens take the form "word\n\0" when they are the last token,
+	// so I have to manually remove that \n to clean these up 
+	// since strlen() returns the len without the null byte,
+	// the position of \n is going to be len - 1
+	if (result[tokCount - 1][strlen(result[tokCount-1]) - 1] == '\n') {
+		// make it a null byte (hoping this doesn't cause errors)
+		result[tokCount - 1][strlen(result[tokCount-1]) - 1] = '\0';
 	}
 
 	// step 5 
