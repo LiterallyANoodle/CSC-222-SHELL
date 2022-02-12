@@ -12,11 +12,15 @@ Desc: Program is a custom shell with file redirection and other basic features.
 #include <sys/wait.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <stdbool.h>
+#include <ctype.h>
 
 #define STR_BUFFER 256
 #define COMMAND_MAX 32 // maximum allowed tokens in any single-line command
 
-void tokenizer(char* userInput, char** result);
+#define DEBUG true
+
+int tokenizer(char* userInput, char** result);
 
 
 int main(int argc, char *argv[])
@@ -29,30 +33,45 @@ int main(int argc, char *argv[])
 	// variables 
 	char userInput[STR_BUFFER] = "";
 	char* tokens[COMMAND_MAX];
+	char* exit = "exit";
+	int tokCount = 0;
 	char CWD[STR_BUFFER];
 	int pipefd[2]; // pipe file descriptor 
 	pid_t pid;
 	char* testText = "testing dup2 and pipe1\n";
 
+	// loop to repeatedly take input
+	tokens[0] = "";
+	while (strncmp(tokens[0], exit, 4) != 0) {
 
-	// step 1: 
-	// make the input space informative
-	printf("%s$ ", getcwd(CWD, STR_BUFFER));
+		if (DEBUG) {
+			printf("%s\n", tokens[0]);
+			printf("%d\n", strncmp(tokens[0], exit, 4));
+		}
 
-	// step 2: 
-	// wait for input and store it in userInput
-	fgets(userInput, 256, stdin);
+		// step 1: 
+		// make the input space informative
+		printf("%s$ ", getcwd(CWD, STR_BUFFER));
 
-	// step 3: 
-	// tokenize the input
-	tokenizer(userInput, tokens);
+		// step 2: 
+		// wait for input and store it in userInput
+		fgets(userInput, 256, stdin);
 
-	for (int i = 0; i < COMMAND_MAX; i++) {
-		printf("%s\n", tokens[i]);
+		// step 3: 
+		// tokenize the input
+		tokCount = tokenizer(userInput, tokens);
+
+		if (DEBUG) {
+			for (int i = 0; i < tokCount; i++) {
+				printf("%s\n", tokens[i]);
+			}
+		}
+
 	}
 
+	printf("exited\n");
 
-	// steps to receive from tokenizer:
+	/*// steps to receive from tokenizer:
 	// 1. create pipe
 	// 2. fork
 
@@ -116,7 +135,7 @@ int main(int argc, char *argv[])
 
 		
 
-	}
+	}*/
 
 
 
@@ -132,8 +151,8 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-
-void tokenizer(char* userInput, char** result) {
+// this is copied from the old assignment and modified to fit 
+int tokenizer(char* userInput, char** result) {
 
 	// declare variables
 	// char* result[COMMAND_MAX];
@@ -163,10 +182,21 @@ void tokenizer(char* userInput, char** result) {
 
 	}
 
+	// remove a trailing space if there is one 
+	if (isspace(result[tokCount - 1][0]) != 0) {
+		result[tokCount - 1] = NULL; 
+		tokCount--; 
+		if (DEBUG)
+			printf("removed trailing space\n");
+	}
+
 	// step 5 
 	// say how many tokens were counted 
-	printf("%d token(s) read.\n", tokCount);
+	if (DEBUG) {
+		printf("%d token(s) read.\n", tokCount);	
+	}
+	
 
-	return;
+	return tokCount;
 
 }
