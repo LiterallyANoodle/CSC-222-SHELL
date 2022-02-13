@@ -25,6 +25,7 @@ int tokenizer(char* userInput, char** result);
 void pwdCheck(char** tokens, char* CWD);
 void cdCheck(char** tokens, int tokCount); 
 void flowHandler(char** tokens, int tokCount); 
+// void cmdPositioner(int cmdList, char** tokens, int tokCount, int* delimiterPositions, int numDelimiters, int numFilenames);
 
 int main(int argc, char *argv[])
 {
@@ -333,7 +334,92 @@ void flowHandler(char** tokens, int tokCount) {
 	// Now that the delimiter positions are known AND the # of filenames,
 	// we can calculate both the number of commands present AND where they 
 	// start and end.
+	int cmdList[numDelimiters - numFilenames + 1][2];
+	// cmdPositioner(cmdList, tokens, tokCount, delimiterPositions, numDelimiters, numFilenames);
 
+	cmdList[0][0] = 0;
+	int numInReads = 0; // need this to help with some indexing issues
 
+	for (int i = 0; i < numDelimiters; i++) {
+
+		// commands exist on either side of | 
+		if (tokens[delimiterPositions[i]][0] == '|') {
+			if (i >= 1) {
+				// this is that weird syntax popping up again
+				// since < can come after a command it inputs to
+				if (tokens[delimiterPositions[i-1]][0] == '<') {
+					// m has already been stored for the last command
+					// store n for the next command
+					cmdList[i+1-numInReads][0] = delimiterPositions[i] + 1;
+				} else {
+					// store m for the last command
+					cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+					// store n for the next command
+					cmdList[i+1-numInReads][0] = delimiterPositions[i] + 1;
+				}
+			} else {
+				// store m for the last command
+				cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+				// store n for the next command
+				cmdList[i+1-numInReads][0] = delimiterPositions[i] + 1;
+			}
+		} 
+		// commands exist on the left side of <
+		// a filename exists on the right side of < (already accounted for)
+		else if (tokens[delimiterPositions[i]][0] == '<') {
+			// store m for the last command 
+			cmdList[i][1] = delimiterPositions[i] - 1;
+			// how annoying >:(
+			numInReads++;
+		} 
+		// commands MAY exist on the left side of >
+		// a filename exists on the right side of > (already accounted for)
+		else if (tokens[delimiterPositions[i]][0] == '>') {
+			if (i >= 1) {
+				// this is that weird syntax popping up again
+				// since < can come after a command it inputs to
+				if (tokens[delimiterPositions[i]][0] == '<') {
+					// m has already been stored for the last command
+					// there is no need to store n for the next command
+					if (DEBUG) {
+						printf("Found >\n");
+					}
+				} else {
+					// store m for the last command 
+					cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+					// there is no need to store n for the next command
+				}
+			} else {
+				// store m for the last command 
+				cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+				// there is no need to store n for the next command
+			}
+		}
+
+	}
+
+	// if the last delimiter is < or >, 
+	// then the m for the last cmd has been stored 
+	// if there are no delimiters or the last delimiter is a |, 
+	// then the m for the last cmd is the last token 
+	if (numDelimiters == 0) {
+		cmdList[0][1] = tokCount - 1; 
+	} else {
+		if (tokens[delimiterPositions[numDelimiters-1]][0] == '|') {
+			cmdList[numDelimiters - numFilenames][1] = tokCount - 1;
+		}
+	}
+
+	if (DEBUG) {
+
+		for (int i = 0; i < numDelimiters - numFilenames + 1; i++)
+		{
+			printf("Command #%d\n", i);
+			printf("Start index: %d\n", cmdList[i][0]);
+			printf("End index: %d\n", cmdList[i][1]);
+		}
+
+	}
 
 }
+
