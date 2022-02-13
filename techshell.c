@@ -77,6 +77,8 @@ int main(int argc, char *argv[])
 			}
 		}
 
+		flowHandler(tokens, tokCount);
+
 	}
 
 	if (DEBUG)
@@ -187,7 +189,6 @@ void flowHandler(char** tokens, int tokCount) {
 	< has strange syntax because it comes AFTER the command but signifies input
 	*/
 
-	// variables
 	/*
 	The variable tokens[] is an un-parsed array of strings. 
 	It contains the entire line that the user has input, divided into words.
@@ -229,19 +230,110 @@ void flowHandler(char** tokens, int tokCount) {
 
 	and to hold our whole set of commands:
 
-	int cmdList[# of delimiters + 1][2]
+	int cmdList[# of delimiters + 1 - # of filenames][2];
 
 	*/
 
-	// loop through every token 
-	for (int i = 0; i < tokCount, i++) {
+	// variables (many of these represent indeces as explained above)
+	int INfilename;
+	int OUTfilename;
+	int numFilenames = 0;
+	int numPipes = 0;
+	int numDelimiters = 0;
+	int delimiterPositions[COMMAND_MAX];
+
+	// loop through every token to look for delimiting tokens
+	// essentially, this loop identifies and separates everything
+	for (int i = 0; i < tokCount; i++) {
 
 		// firstly, count the number of commands, files, and redirects present
 		// this way, memory for the necessary number of pipes can be prepared beforehand
 		// i think only pipes can vary, because there will only be one file in and one file out, right?
 		// *******REMEMBER TO free() THE MEMORY FOR THESE PIPES WHEN ITS DONE*******
+		switch (tokens[i][0]) {
+			case '<' :
+				if (i - 1 >= 0) {
+					delimiterPositions[numDelimiters] = i;
+					numDelimiters++;
+					numFilenames++;
+				} else {
+					printf("Error: Invalid syntax.\n");
+					return; 
+				}
+				if (i + 1 <= tokCount - 1) {
+					INfilename = i + 1;
+				} else {
+					printf("Error: Invalid syntax.\n");
+					return; 
+				}
+				break; 
+
+			case '>' :
+				if (i - 1 >= 0) {
+					delimiterPositions[numDelimiters] = i;
+					numDelimiters++;
+					numFilenames++;
+				} else {
+					printf("Error: Invalid syntax.\n");
+					return;
+				}
+				if (i + 1 <= tokCount - 1) {
+					OUTfilename = i + 1;
+				} else {
+					printf("Error: Invalid syntax.\n");
+					return; 
+				}
+				break; 
+
+			case '|' : 
+				if (i - 1 >= 0) {
+					delimiterPositions[numDelimiters] = i;
+					numDelimiters++;
+					numPipes++;
+				} else {
+					printf("Error: Invalid syntax.\n");
+					return;
+				}
+				if (i + 1 <= tokCount - 1) {
+					// after modifying this switch case, idk what to put here lol
+					if (DEBUG)
+						printf("Valid syntax. :)\n");
+				} else {
+					printf("Error: Invalid syntax.\n");
+					return;
+				}
+				break; 
+
+			// token is just another arg for a command or filename
+			default :
+				break; 
+
+		}
 
 
 	}
+
+	// I just wanna say here at this debug that 
+	// I wrote this entire switch case in one go and it worked first try*
+	// *i had one small syntax error but it was an easy fix
+	// Finally I am success :')
+	if (DEBUG) {
+
+		printf("numDelimiters: %d\n", numDelimiters);
+
+		for (int i = 0; i < numDelimiters; i++) {
+
+			printf("delimiterPositions[%d]: %d\n", i, delimiterPositions[i]);
+			printf("Delimiter at postion %d: %s\n", delimiterPositions[i], tokens[delimiterPositions[i]]);
+
+		}
+
+	}
+
+	// Now that the delimiter positions are known AND the # of filenames,
+	// we can calculate both the number of commands present AND where they 
+	// start and end.
+
+
 
 }
