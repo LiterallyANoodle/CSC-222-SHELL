@@ -229,7 +229,7 @@ void flowHandler(char** tokens, int tokCount) {
 
 	and to hold our whole set of commands:
 
-	int cmd[# of delimiters + 1][2]
+	int cmdList[# of delimiters + 1][2]
 
 	*/
 
