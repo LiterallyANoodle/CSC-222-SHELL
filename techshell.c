@@ -266,6 +266,12 @@ void flowHandler(char** tokens, int tokCount) {
 				} else {
 					printf("Error: Invalid syntax.\n");
 					return; 
+				} 
+				if (delimiterPositions[i] + 2 <= tokCount - 1) {
+					if (delimiterPositions[i] + 2 != delimiterPositions[i+1]) {
+						printf("Error: Invalid syntax.\n");
+						return;
+					}
 				}
 				break; 
 
@@ -283,6 +289,10 @@ void flowHandler(char** tokens, int tokCount) {
 				} else {
 					printf("Error: Invalid syntax.\n");
 					return; 
+				} 
+				if (delimiterPositions[i] + 2 <= tokCount - 1) {
+					printf("Error: Invalid syntax.\n");
+					return;
 				}
 				break; 
 
