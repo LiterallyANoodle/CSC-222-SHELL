@@ -166,10 +166,10 @@ void cdCheck(char** tokens, int tokCount) {
 	if (strncmp(tokens[0], "cd", 2) == 0) {
 
 		if (tokCount < 2) {
-			printf("Please specify a directory to change to.\nUsage: cd <path> \n");
+			printf("Please specify a directory to change to.\nUsage: cd [path] \n");
 		} 
 		else if (chdir(tokens[1]) == -1) {
-			printf("Error: Invalid path.\nUsage: cd <path> \n");
+			printf("Error: Invalid path.\nUsage: cd [path] \n");
 			if (DEBUG) {
 				perror("Invalid path");
 			}
@@ -258,18 +258,18 @@ void flowHandler(char** tokens, int tokCount) {
 					numDelimiters++;
 					numFilenames++;
 				} else {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
 					return; 
 				}
 				if (i + 1 <= tokCount - 1) {
 					INfilename = i + 1;
 				} else {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
 					return; 
 				} 
 				if (delimiterPositions[i] + 2 <= tokCount - 1) {
 					if (delimiterPositions[i] + 2 != delimiterPositions[i+1]) {
-						printf("Error: Invalid syntax.\n");
+						printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
 						return;
 					}
 				}
@@ -281,17 +281,17 @@ void flowHandler(char** tokens, int tokCount) {
 					numDelimiters++;
 					numFilenames++;
 				} else {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] > [path]\n");
 					return;
 				}
 				if (i + 1 <= tokCount - 1) {
 					OUTfilename = i + 1;
 				} else {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] > [path]\n");
 					return; 
 				} 
 				if (delimiterPositions[i] + 2 <= tokCount - 1) {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] > [path]\n");
 					return;
 				}
 				break; 
@@ -302,7 +302,7 @@ void flowHandler(char** tokens, int tokCount) {
 					numDelimiters++;
 					numPipes++;
 				} else {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] | [command]\n");
 					return;
 				}
 				if (i + 1 <= tokCount - 1) {
@@ -310,7 +310,7 @@ void flowHandler(char** tokens, int tokCount) {
 					if (DEBUG)
 						printf("Valid syntax. :)\n");
 				} else {
-					printf("Error: Invalid syntax.\n");
+					printf("Error: Invalid syntax.\nUsage: [command] | [command]\n");
 					return;
 				}
 				break; 
@@ -344,10 +344,15 @@ void flowHandler(char** tokens, int tokCount) {
 	// Now that the delimiter positions are known AND the # of filenames,
 	// we can calculate both the number of commands present AND where they 
 	// start and end.
-	int cmdList[numDelimiters - numFilenames + 1][2];
+	int rowWidth = (numDelimiters - numFilenames + 1);
+	int cmdList[(rowWidth * 2)];
 	// cmdPositioner(cmdList, tokens, tokCount, delimiterPositions, numDelimiters, numFilenames);
 
-	cmdList[0][0] = 0;
+	// this was originally a 2D array like cmdList[cmd index][tokens index]
+	// however 2D arrays cannot be passed to functions so instead 
+	// cmdList[cmd index][tokens index] = cmdList[cmd index + tokens index * width of one row]
+	// this is functionally the same, just a little syntax
+	cmdList[0 + 0*rowWidth] = 0;
 	int numInReads = 0; // need this to help with some indexing issues
 
 	for (int i = 0; i < numDelimiters; i++) {
@@ -360,25 +365,25 @@ void flowHandler(char** tokens, int tokCount) {
 				if (tokens[delimiterPositions[i-1]][0] == '<') {
 					// m has already been stored for the last command
 					// store n for the next command
-					cmdList[i+1-numInReads][0] = delimiterPositions[i] + 1;
+					cmdList[i+1-numInReads + 0*rowWidth] = delimiterPositions[i] + 1;
 				} else {
 					// store m for the last command
-					cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+					cmdList[i-numInReads + 1*rowWidth] = delimiterPositions[i] - 1;
 					// store n for the next command
-					cmdList[i+1-numInReads][0] = delimiterPositions[i] + 1;
+					cmdList[i+1-numInReads + 0*rowWidth] = delimiterPositions[i] + 1;
 				}
 			} else {
 				// store m for the last command
-				cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+				cmdList[i-numInReads + 1*rowWidth] = delimiterPositions[i] - 1;
 				// store n for the next command
-				cmdList[i+1-numInReads][0] = delimiterPositions[i] + 1;
+				cmdList[i+1-numInReads + 0*rowWidth] = delimiterPositions[i] + 1;
 			}
 		} 
 		// commands exist on the left side of <
 		// a filename exists on the right side of < (already accounted for)
 		else if (tokens[delimiterPositions[i]][0] == '<') {
 			// store m for the last command 
-			cmdList[i][1] = delimiterPositions[i] - 1;
+			cmdList[i + 1*rowWidth] = delimiterPositions[i] - 1;
 			// how annoying >:(
 			numInReads++;
 		} 
@@ -396,12 +401,12 @@ void flowHandler(char** tokens, int tokCount) {
 					}
 				} else {
 					// store m for the last command 
-					cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+					cmdList[i-numInReads + 1*rowWidth] = delimiterPositions[i] - 1;
 					// there is no need to store n for the next command
 				}
 			} else {
 				// store m for the last command 
-				cmdList[i-numInReads][1] = delimiterPositions[i] - 1;
+				cmdList[i-numInReads + 1*rowWidth] = delimiterPositions[i] - 1;
 				// there is no need to store n for the next command
 			}
 		}
@@ -413,10 +418,10 @@ void flowHandler(char** tokens, int tokCount) {
 	// if there are no delimiters or the last delimiter is a |, 
 	// then the m for the last cmd is the last token 
 	if (numDelimiters == 0) {
-		cmdList[0][1] = tokCount - 1; 
+		cmdList[0 + 1*rowWidth] = tokCount - 1; 
 	} else {
 		if (tokens[delimiterPositions[numDelimiters-1]][0] == '|') {
-			cmdList[numDelimiters - numFilenames][1] = tokCount - 1;
+			cmdList[numDelimiters - numFilenames + 1*rowWidth] = tokCount - 1;
 		}
 	}
 
@@ -425,8 +430,8 @@ void flowHandler(char** tokens, int tokCount) {
 		for (int i = 0; i < numDelimiters - numFilenames + 1; i++)
 		{
 			printf("Command #%d\n", i);
-			printf("Start index: %d\n", cmdList[i][0]);
-			printf("End index: %d\n", cmdList[i][1]);
+			printf("Start index: %d\n", cmdList[i + 0*rowWidth]);
+			printf("End index: %d\n", cmdList[i + 1*rowWidth]);
 		}
 
 	}
