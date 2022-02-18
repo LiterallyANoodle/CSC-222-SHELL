@@ -238,8 +238,8 @@ void flowHandler(char** tokens, int tokCount) {
 	*/
 
 	// variables (many of these represent indeces as explained above)
-	int INfile;
-	int OUTfile;
+	int INfile = -1;
+	int OUTfile = -1;
 	int* INfilename = &INfile;
 	int* OUTfilename = &OUTfile;
 	int numFilenames = 0;
@@ -275,8 +275,12 @@ void flowHandler(char** tokens, int tokCount) {
 					return; 
 				} 
 				if (delimiterPositions[numDelimiters-1] + 2 <= tokCount - 1) {
-					if (delimiterPositions[numDelimiters-1] + 2 != delimiterPositions[i]) {
-						// printf("Error 3\n");
+					// the next test is a bit confusing 
+					// this is basically checking that the token after the PATH is a delimiter 
+					// if it is not, then the syntax is invalid 
+					// this is once again due to < having funky syntax to begin with
+					if (tokens[delimiterPositions[numDelimiters-1] + 2][0] != '>' && tokens[delimiterPositions[numDelimiters-1] + 2][0] != '|') {
+						printf("Error 3\n");
 						// printf("i in check2: %d\n", i);
 						// printf("delimPos: %d\nLast valid pos: %d\n", delimiterPositions[i], tokCount - 1);
 						printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
@@ -396,6 +400,10 @@ void flowHandler(char** tokens, int tokCount) {
 			cmdList[i + 1*rowWidth] = delimiterPositions[i] - 1;
 			// how annoying >:(
 			numInReads++;
+
+			if (DEBUG) {
+				printf("Addressing cmdList[%d][%d] containing: %d\n", i, 1*rowWidth, delimiterPositions[i] - 1);
+			}
 		} 
 		// commands MAY exist on the left side of >
 		// a filename exists on the right side of > (already accounted for)
@@ -403,7 +411,7 @@ void flowHandler(char** tokens, int tokCount) {
 			if (i >= 1) {
 				// this is that weird syntax popping up again
 				// since < can come after a command it inputs to
-				if (tokens[delimiterPositions[i]][0] == '<') {
+				if (tokens[delimiterPositions[i-1]][0] == '<') {
 					// m has already been stored for the last command
 					// there is no need to store n for the next command
 					if (DEBUG) {
@@ -413,11 +421,19 @@ void flowHandler(char** tokens, int tokCount) {
 					// store m for the last command 
 					cmdList[i-numInReads + 1*rowWidth] = delimiterPositions[i] - 1;
 					// there is no need to store n for the next command
+					if (DEBUG) {
+						printf("Multiple delims.\n");
+						printf("Addressing cmdList[%d][%d] containing: %d\n", i, 1*rowWidth, delimiterPositions[i] - 1);
+					}
 				}
 			} else {
 				// store m for the last command 
 				cmdList[i-numInReads + 1*rowWidth] = delimiterPositions[i] - 1;
 				// there is no need to store n for the next command
+				if (DEBUG) {
+					printf("Only delim.\n");
+					printf("Addressing cmdList[%d][%d] containing: %d\n", i, 1*rowWidth, delimiterPositions[i] - 1);
+				}
 			}
 		}
 
@@ -498,17 +514,19 @@ void executionHandler(char** tokens, int* cmdList, int rowWidth, int* INfilename
 
 		// create the appropriate number of pipes
 		int pipefd[numPipes][2];
+		int infd;
+		int outfd;
 
 		// step 1: Redirect file through stdin (if necessary)
 		if (DEBUG) {
 			printf("Before IN redirect.\n");
-			printf("INfilename is: %p\n", (void*)INfilename);
+			printf("INfilename is: %p, containing: %d\n", (void*)INfilename, *INfilename);
 		}
-		if (INfilename != NULL) {
+		if (*INfilename != -1) {
 			if (DEBUG) {
 				printf("Entered IN redirect.\n");
 			}
-			int infd = open(tokens[*INfilename], O_RDONLY);
+			infd = open(tokens[*INfilename], O_RDONLY);
 			if (infd == -1) {
 				printf("Error: Invalid path.\nUsage: [command] < [path]");
 				if (DEBUG) {
@@ -522,11 +540,15 @@ void executionHandler(char** tokens, int* cmdList, int rowWidth, int* INfilename
 		// step 2: execute commands through pipes until the last one is reached 
 
 		// step 3: Redirect stdout through file (if necessary)
-		if (OUTfilename != NULL) {
+		if (DEBUG) {
+			printf("Before OUT redirect.\n");
+			printf("OUTfilename is: %p, containing: %d\n", (void*)OUTfilename, *OUTfilename);
+		}
+		if (*OUTfilename != -1) {
 			if (DEBUG) {
 				printf("Entered OUT redirect.\n");
 			}
-			int outfd = open(tokens[*OUTfilename], O_WRONLY | O_CREAT); 
+			outfd = open(tokens[*OUTfilename], O_WRONLY | O_CREAT | O_TRUNC); 
 			if (outfd == -1) {
 				printf("Error: Invalid path.\nUsage: [command] > [path]");
 				if (DEBUG) {
@@ -545,12 +567,19 @@ void executionHandler(char** tokens, int* cmdList, int rowWidth, int* INfilename
 		args[cmdList[0 + 1*rowWidth] + 1] = NULL;
 		execvp(tokens[0], args);
 
+		if (*INfilename != -1) {
+			close(infd); 
+		}
+		if (*OUTfilename != -1) {
+			close(outfd);
+		}
 
 		exit(0);
 
 	} else {
 		wait(0); 
-		printf("Main parent waited.\n");
+		if (DEBUG)
+			printf("Main parent waited.\n");
 	}
 
 }
