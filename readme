@@ -2,6 +2,9 @@ Name: Matthew Mahan
 Date: 2/20/2022
 Desc: Program implements a simple shell in the terminal. 
 
+Github repo:
+https://github.com/LiterallyANoodle/CSC-222-SHELL
+
 Welcome to Techshell!
 
 Techshell is a simple shell that is capable of running any linux command in the terminal. 
