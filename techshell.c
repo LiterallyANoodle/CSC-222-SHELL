@@ -22,8 +22,8 @@ Desc: Program is a custom shell with file redirection and other basic features.
 #define DEBUG false
 
 int tokenizer(char* userInput, char** result);
-void pwdCheck(char** tokens, char* CWD);
-void cdCheck(char** tokens, int tokCount); 
+bool pwdCheck(char** tokens, char* CWD);
+bool cdCheck(char** tokens, int tokCount); 
 void flowHandler(char** tokens, int tokCount); 
 // void cmdPositioner(int cmdList, char** tokens, int tokCount, int* delimiterPositions, int numDelimiters, int numFilenames);
 void executionHandler(char** tokens, int* cmdList, int rowWidth, int* INfilename, int* OUTfilename, int numPipes);
@@ -40,6 +40,8 @@ int main(int argc, char *argv[])
 	char* tokens[COMMAND_MAX];
 	char* exit = "exit";
 	char CWD[STR_BUFFER];
+	bool pwdRun = false;
+	bool cdRun = false;
 	
 	int tokCount = 0;
 	pid_t pid;
@@ -69,8 +71,8 @@ int main(int argc, char *argv[])
 
 		// step 4:
 		// check for special non-exit commands: pwd, cd
-		pwdCheck(tokens, CWD);
-		cdCheck(tokens, tokCount);
+		pwdRun = pwdCheck(tokens, CWD);
+		cdRun = cdCheck(tokens, tokCount);
 
 		if (DEBUG) {
 			for (int i = 0; i < tokCount; i++) {
@@ -78,7 +80,9 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		flowHandler(tokens, tokCount);
+		if (!cdRun && !pwdRun) {
+			flowHandler(tokens, tokCount);
+		}
 
 	}
 
@@ -152,15 +156,17 @@ int tokenizer(char* userInput, char** result) {
 
 }
 
-void pwdCheck(char** tokens, char* CWD) {
+bool pwdCheck(char** tokens, char* CWD) {
 
 	if (strncmp(tokens[0], "pwd", 3) == 0) {
 		printf("%s\n", CWD);
+		return true;
 	}
+	return false;
 
 }
 
-void cdCheck(char** tokens, int tokCount) {
+bool cdCheck(char** tokens, int tokCount) {
 
 
 	if (strncmp(tokens[0], "cd", 2) == 0) {
@@ -174,9 +180,10 @@ void cdCheck(char** tokens, int tokCount) {
 				perror("Invalid path");
 			}
 		}
+		return true;
 
 	}
-
+	return false;
 
 }
 
@@ -280,7 +287,7 @@ void flowHandler(char** tokens, int tokCount) {
 					// if it is not, then the syntax is invalid 
 					// this is once again due to < having funky syntax to begin with
 					if (tokens[delimiterPositions[numDelimiters-1] + 2][0] != '>' && tokens[delimiterPositions[numDelimiters-1] + 2][0] != '|') {
-						printf("Error 3\n");
+						// printf("Error 3\n");
 						// printf("i in check2: %d\n", i);
 						// printf("delimPos: %d\nLast valid pos: %d\n", delimiterPositions[i], tokCount - 1);
 						printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");

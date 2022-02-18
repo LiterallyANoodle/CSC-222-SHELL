@@ -1,0 +1,25 @@
+Script started on 2022-02-17 22:03:43-06:00 [TERM="xterm-256color" TTY="/dev/pts/4" COLUMNS="211" LINES="60"]
+noodle@matthew-CSC222:~/Desktop/git/CSC-222-SHELL$ ./techshell
+/home/noodle/Desktop/git/CSC-222-SHELL$ cd /home/noodle/Desktop/git/
+/home/noodle/Desktop/git$ pwd
+/home/noodle/Desktop/git
+/home/noodle/Desktop/git$ cd CSC-222-SHELL
+/home/noodle/Desktop/git/CSC-222-SHELL$ ls
+hello  hello.c	output.txt  Programming#3.pdf  readme  techshell  techshell.c  techshell.mk  techshell.zip  tokenizer  tokenizer.c  typescript
+/home/noodle/Desktop/git/CSC-222-SHELL$ wc < hello.c
+  6  14 101
+/home/noodle/Desktop/git/CSC-222-SHELL$ wc hello.c       < hello.c > output.txt
+/home/noodle/Desktop/git/CSC-222-SHELL$ wc < too many to  words!
+Error: Invalid syntax.
+Usage: [command] < [path]
+/home/noodle/Desktop/git/CSC-222-SHELL$ wc <
+Error: Invalid syntax.
+Usage: [command] < [path]
+/home/noodle/Desktop/git/CSC-222-SHELL$ wc > too man  y works  ds!
+Error: Invalid syntax.
+Usage: [command] > [path]
+/home/noodle/Desktop/git/CSC-222-SHELL$ exit
+noodle@matthew-CSC222:~/Desktop/git/CSC-222-SHELL$ exit
+exit
+
+Script done on 2022-02-17 22:05:45-06:00 [COMMAND_EXIT_CODE="0"]
