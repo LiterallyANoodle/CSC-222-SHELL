@@ -26,6 +26,7 @@ void pwdCheck(char** tokens, char* CWD);
 void cdCheck(char** tokens, int tokCount); 
 void flowHandler(char** tokens, int tokCount); 
 // void cmdPositioner(int cmdList, char** tokens, int tokCount, int* delimiterPositions, int numDelimiters, int numFilenames);
+void executionHandler(char** tokens, int* cmdList, int rowWidth, int* INfilename, int* OUTfilename, int numPipes);
 
 int main(int argc, char *argv[])
 {
@@ -41,7 +42,6 @@ int main(int argc, char *argv[])
 	char CWD[STR_BUFFER];
 	
 	int tokCount = 0;
-	int pipefd[2]; // pipe file descriptor 
 	pid_t pid;
 	
 	char* testText = "testing dup2 and pipe1\n";
@@ -180,6 +180,8 @@ void cdCheck(char** tokens, int tokCount) {
 
 }
 
+// command to determine all of the flow-related syntax present in the input
+// also does minor syntax checking 
 void flowHandler(char** tokens, int tokCount) {
 
 	/*
@@ -236,8 +238,10 @@ void flowHandler(char** tokens, int tokCount) {
 	*/
 
 	// variables (many of these represent indeces as explained above)
-	int INfilename;
-	int OUTfilename;
+	int INfile;
+	int OUTfile;
+	int* INfilename = &INfile;
+	int* OUTfilename = &OUTfile;
 	int numFilenames = 0;
 	int numPipes = 0;
 	int numDelimiters = 0;
@@ -255,20 +259,26 @@ void flowHandler(char** tokens, int tokCount) {
 			case '<' :
 				if (i - 1 >= 0) {
 					delimiterPositions[numDelimiters] = i;
+					// printf("numDelimiters: %d\ni in check1: %d\n", numDelimiters, i);
 					numDelimiters++;
 					numFilenames++;
 				} else {
+					// printf("Error 1\n");
 					printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
 					return; 
 				}
 				if (i + 1 <= tokCount - 1) {
-					INfilename = i + 1;
+					(*INfilename) = i + 1;
 				} else {
+					// printf("Error 2\n");
 					printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
 					return; 
 				} 
-				if (delimiterPositions[i] + 2 <= tokCount - 1) {
-					if (delimiterPositions[i] + 2 != delimiterPositions[i+1]) {
+				if (delimiterPositions[numDelimiters-1] + 2 <= tokCount - 1) {
+					if (delimiterPositions[numDelimiters-1] + 2 != delimiterPositions[i]) {
+						// printf("Error 3\n");
+						// printf("i in check2: %d\n", i);
+						// printf("delimPos: %d\nLast valid pos: %d\n", delimiterPositions[i], tokCount - 1);
 						printf("Error: Invalid syntax.\nUsage: [command] < [path]\n");
 						return;
 					}
@@ -285,12 +295,12 @@ void flowHandler(char** tokens, int tokCount) {
 					return;
 				}
 				if (i + 1 <= tokCount - 1) {
-					OUTfilename = i + 1;
+					(*OUTfilename) = i + 1;
 				} else {
 					printf("Error: Invalid syntax.\nUsage: [command] > [path]\n");
 					return; 
 				} 
-				if (delimiterPositions[i] + 2 <= tokCount - 1) {
+				if (delimiterPositions[numDelimiters-1] + 2 <= tokCount - 1) {
 					printf("Error: Invalid syntax.\nUsage: [command] > [path]\n");
 					return;
 				}
@@ -351,7 +361,7 @@ void flowHandler(char** tokens, int tokCount) {
 	// this was originally a 2D array like cmdList[cmd index][tokens index]
 	// however 2D arrays cannot be passed to functions so instead 
 	// cmdList[cmd index][tokens index] = cmdList[cmd index + tokens index * width of one row]
-	// this is functionally the same, just a little syntax
+	// this is functionally the same, just a little syntax is different
 	cmdList[0 + 0*rowWidth] = 0;
 	int numInReads = 0; // need this to help with some indexing issues
 
@@ -436,5 +446,111 @@ void flowHandler(char** tokens, int tokCount) {
 
 	}
 
+	executionHandler(tokens, cmdList, rowWidth, INfilename, OUTfilename, numPipes);
+
 }
 
+// function to order the executions of input commands after the tokens have been processed
+void executionHandler(char** tokens, int* cmdList, int rowWidth, int* INfilename, int* OUTfilename, int numPipes) {
+
+	// everything here should be performed in a child so as to protect the 
+	// filedesciptors for the main parent
+	// (don't want an fd for stdin/out to be incorrect on the next user input)
+	if (fork() == 0) {
+
+		/*
+		I feel the need to set some thoughts down here now, so I can make sure 
+		this ordering is right. 
+
+		When any command is executing, whether it is alone or has many others, 
+		it must have the correct input obviously. 
+		But also, the correct output for that command must be in place too, 
+		which is less obvious. 
+		Redirection is handled via dup2 and file descriptors (integers). 
+
+		Redirection of stdin via the < syntax will only happen to the command 0
+		(I'm going to assume. I don't know for certain.). Therefore, if the <
+		is present, then that redirect should be prepped before executing 
+		command 0. 
+
+		Redirection via pipes must also be handled before executing the next
+		command. If there is a command after this one, then it may be assumed
+		that the stdout of this process should be redirected to a new pipe. 
+		If there is a command which preceeds this one, we can assume a pipe has
+		already been created, but we must connect input to that pipe BEFORE
+		executing the command held within. If there are no commands to preceed
+		this one, we can assume the user has either used < or otherwise has 
+		input handled. 
+
+		If the last command is encountered, it MUST have a separate execution 
+		outside of the pipe preparation loop. This is so that the > redirect has 
+		an opportunity to redirect the stdout to file if necessary. 
+
+		I am having difficulty understanding how I might go about redirecting 
+		the previous pipe as input to this command. 
+		Let's think then. 
+		If there is already an extant pipe created during the previous cmd's loop
+		which is stored in the array of pipes at index pipefd[i-1], then that pipe
+		may be referred to as such. Though, realistically, if there is a pipe there,
+		then its index in the pipe array is going to be the index of this command - 1.
+
+		*/
+
+		// create the appropriate number of pipes
+		int pipefd[numPipes][2];
+
+		// step 1: Redirect file through stdin (if necessary)
+		if (DEBUG) {
+			printf("Before IN redirect.\n");
+			printf("INfilename is: %p\n", (void*)INfilename);
+		}
+		if (INfilename != NULL) {
+			if (DEBUG) {
+				printf("Entered IN redirect.\n");
+			}
+			int infd = open(tokens[*INfilename], O_RDONLY);
+			if (infd == -1) {
+				printf("Error: Invalid path.\nUsage: [command] < [path]");
+				if (DEBUG) {
+					perror("Invalid path");
+				}
+			} else {
+				dup2(infd, STDIN_FILENO);
+			}
+		}
+
+		// step 2: execute commands through pipes until the last one is reached 
+
+		// step 3: Redirect stdout through file (if necessary)
+		if (OUTfilename != NULL) {
+			if (DEBUG) {
+				printf("Entered OUT redirect.\n");
+			}
+			int outfd = open(tokens[*OUTfilename], O_WRONLY | O_CREAT); 
+			if (outfd == -1) {
+				printf("Error: Invalid path.\nUsage: [command] > [path]");
+				if (DEBUG) {
+					perror("Invalid path");
+				}
+			} else {
+				dup2(outfd, STDOUT_FILENO); 
+			}
+		}
+
+		// just < and > redirects for now testing 
+		char* args[cmdList[0 + 1*rowWidth] + 2];
+		for (int i = 0; i <= cmdList[0 + 1*rowWidth]; i++) {
+			args[i] = tokens[i];
+		}
+		args[cmdList[0 + 1*rowWidth] + 1] = NULL;
+		execvp(tokens[0], args);
+
+
+		exit(0);
+
+	} else {
+		wait(0); 
+		printf("Main parent waited.\n");
+	}
+
+}
