@@ -1,0 +1,21 @@
+Name: Matthew Mahan
+Date: 2/20/2022
+Desc: Program implements a simple shell in the terminal. 
+
+Welcome to Techshell!
+
+Techshell is a simple shell that is capable of running any linux command in the terminal. 
+Commands are run via the execvp() function, so function as they normally would. 
+Parent-related commands exit, cd, and pwd are implemented manually. These commands do not have options available, but do function with basic syntax. 
+
+The interface for the command line displays the current working directory in front of the input line. 
+
+There is also support for file redirection. Only file to stdin and stdout to file are supported at the moment, but pipes are in process of being implemented. 
+
+There is also comprehensive syntax checking for input strings! 
+If file redirection syntax is misused, then the program will say as such. 
+Syntax checking for pipes is implemented, however pipes do not have functionality when used. 
+
+For testing purposes, hello.c and output.txt are provided. 
+output.txt currently contains the contents from the command:
+wc < hello.c > output.txt

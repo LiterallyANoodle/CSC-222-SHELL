@@ -19,7 +19,7 @@ Desc: Program is a custom shell with file redirection and other basic features.
 #define STR_BUFFER 256
 #define COMMAND_MAX 32 // maximum allowed tokens in any single-line command
 
-#define DEBUG true
+#define DEBUG false
 
 int tokenizer(char* userInput, char** result);
 void pwdCheck(char** tokens, char* CWD);
@@ -85,9 +85,9 @@ int main(int argc, char *argv[])
 	if (DEBUG)
 		printf("exited\n");
 
-	char* args[5] = {"wc", "techshell.c"};
+	// char* args[5] = {"wc", "techshell.c"};
 
-	execvp("wc", args);
+	// execvp("wc", args);
 
 
 	return 0;
